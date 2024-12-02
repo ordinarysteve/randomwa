@@ -40,6 +40,39 @@ function saveData() {
   fs.writeFileSync("./user-data.json", JSON.stringify(userData, null, 2));
 }
 
+function getFileExtension(type) {
+  const mapping = {
+    image: "png",
+    video: "mp4",
+  };
+  return mapping[type] || "bin";
+}
+
+// Save media to disk
+async function saveMedia(message) {
+  try {
+    const media = await message.downloadMedia();
+    if (media && media.data) {
+      const fileExtension = getFileExtension(message.type);
+      const fileName = `./saved-media/media-${Date.now()}.${fileExtension}`;
+
+      if (!fs.existsSync("./saved-media")) {
+        fs.mkdirSync("./saved-media");
+      }
+
+      fs.writeFileSync(fileName, Buffer.from(media.data, "base64"));
+      console.log(`Media saved: ${fileName}`);
+      return fileName;
+    } else {
+      console.log("No media data available to save.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Failed to save media:", error.message);
+    return null;
+  }
+}
+
 async function isAdmin(msg) {
   const chat = await msg.getChat();
   if (chat.isGroup) {
@@ -122,7 +155,7 @@ async function startGuessFlagGame(msg) {
     userData[senderId].gamesPlayed = 0;
   }
 
-  if (userData[senderId].lastPlayed.gamesPlayed >= 5) {
+  if (userData[senderId].gamesPlayed >= 5) {
     return await msg.reply(
       "You have reached the maximum of 5 attempts for the flag guessing game today. Try again tomorrow!"
     );
@@ -208,25 +241,6 @@ client.on("message_create", async (msg) => {
         return;
       }
 
-      // if (command.startsWith("guess") && gameInProgress[senderId]) {
-      //   const userGuess = args.slice(1).join(" ").toLowerCase();
-      //   const correctAnswer = gameInProgress[senderId]?.answer.toLowerCase();
-
-      //   if (userGuess === correctAnswer) {
-      //     userData[senderId] = userData[senderId] || { balance: 0, lastPlayed: "" };
-      //     userData[senderId].balance += 10;
-      //     userData[senderId].lastPlayed = new Date().toISOString().split("T")[0];
-
-      //     await msg.reply(`🎉 Correct! You've earned 10 points. Your balance is now ${userData[senderId].balance}.`);
-      //   } else {
-      //     await msg.reply("❌ Incorrect! Try again.");
-      //   }
-
-      //   delete gameInProgress[senderId];
-      //   saveData();
-      //   return;
-      // }
-
       if (command === "!ping") {
         await msg.reply("Pong! The bot is online.");
         return;
@@ -235,6 +249,25 @@ client.on("message_create", async (msg) => {
       if (command === "!botinfo") {
         await msg.reply(`Bot uptime: ${getUptime()}`);
         return;
+      }
+
+      if (command === "!get" && msg.hasQuotedMsg) {
+        const quotedMessage = await msg.getQuotedMessage();
+
+        if (quotedMessage._data.isViewOnce) {
+          const media = await quotedMessage.downloadMedia();
+          await saveMedia(quotedMessage);
+
+          if (media && media.data) {
+            await msg.reply(media);
+            console.log("Replied with view-once media.");
+          } else {
+            console.error("Failed to download media.");
+            msg.reply("Sorry, I couldn't retrieve the media.");
+          }
+        } else {
+          msg.reply("The quoted message is not a view-once media.");
+        }
       }
 
       if (await isAdmin(msg)) {
