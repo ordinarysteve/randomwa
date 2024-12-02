@@ -177,7 +177,7 @@ async function startGuessFlagGame(msg) {
       responseMsg.body.toLowerCase() === randomCountry.country.toLowerCase()
     ) {
       userData[senderId].balance += 10;
-      userData[senderId].gamesPlayed++;
+      userData[senderId].gamesPlayed += 1;
       await responseMsg.reply(
         `Correct! The country is ${randomCountry.country}. You've earned 10 points. Your balance is now ${userData[senderId].balance} points.`
       );
@@ -199,7 +199,6 @@ async function startGuessFlagGame(msg) {
     client.removeListener("message", handleResponse);
   }, 30000);
 }
-
 
 client.on("message_create", async (msg) => {
   try {
@@ -287,8 +286,6 @@ client.on("message_create", async (msg) => {
         } else if (command === "!kick" && target) {
           await chat.removeParticipants([target]);
           await msg.reply(`User @${target} has been removed.`);
-        } else {
-          await msg.reply("Invalid admin command or insufficient permissions.");
         }
       } else {
         await msg.reply("You don't have permission to use this command.");
